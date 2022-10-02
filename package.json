@@ -1,0 +1,55 @@
+{
+  "name": "g-request",
+  "version": "1.0.0",
+  "description": "封装了一些常见的业务逻辑的请求库，如请求参数与返回数据处理，业务逻辑码（retcode）处理，失败重试，统一成功失败处理等。默认支持小程序与 WEB 请求。",
+  "type": "module",
+  "miniprogram": "dist",
+  "main": "dist/index.js",
+  "module": "dist/esm/index.js",
+  "types": "dist/esm/index.d.ts",
+  "files": [
+    "src",
+    "dist",
+    "package.json",
+    "README.md"
+  ],
+  "sideEffects": false,
+  "scripts": {
+    "lint": "lint-staged",
+    "clean": "rimraf dist && rimraf .build",
+    "build": "npm run clean && tsc && rollup -c ./rollup.config.js",
+    "release": "standard-version && npm run build",
+    "prepare": "husky install",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "lint-staged": {
+    "src/**/*.ts": "eslint --fix"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/marvin1023/g-request.git"
+  },
+  "keywords": [
+    "request",
+    "miniapp request",
+    "web request"
+  ],
+  "author": "ycxu",
+  "license": "ISC",
+  "devDependencies": {
+    "@typescript-eslint/eslint-plugin": "^5.29.0",
+    "@typescript-eslint/parser": "^5.29.0",
+    "eslint": "^8.18.0",
+    "eslint-config-prettier": "^8.5.0",
+    "husky": "^8.0.1",
+    "lint-staged": "^13.0.2",
+    "prettier": "^2.7.1",
+    "rimraf": "^3.0.2",
+    "rollup": "^2.75.7",
+    "rollup-plugin-dts": "^4.2.2",
+    "rollup-plugin-license": "^2.8.1",
+    "rollup-plugin-terser": "^7.0.2",
+    "standard-version": "^9.5.0",
+    "typescript": "^4.7.4"
+  }
+}

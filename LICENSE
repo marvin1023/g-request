@@ -1,0 +1,4 @@
+Bundle of <%= pkg.name %>
+Version: <%= pkg.version %>
+Auth: <%= pkg.author %>
+Generated: <%= moment().format('YYYY-MM-DD') %>
