@@ -1,6 +1,6 @@
-import { IWXRequestOptions, IWXRequestSuccessCallbackResult, IWXRequestFailCallbackResult } from '../../types';
+import { IWXReqOptions, IWXRequestSuccessCallbackResult, IWXRequestFailCallbackResult } from '../../types';
 
-const wxAdapter = (config: IWXRequestOptions, resolve: (value: unknown) => void, reject: (reason?: any) => void) => {
+export const wxAdapter = (config: IWXReqOptions, resolve: (value: unknown) => void, reject: (reason?: any) => void) => {
   return wx.request({
     ...config,
     success: (res: IWXRequestSuccessCallbackResult) => {
@@ -11,5 +11,3 @@ const wxAdapter = (config: IWXRequestOptions, resolve: (value: unknown) => void,
     },
   });
 };
-
-export default wxAdapter;

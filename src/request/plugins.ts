@@ -1,4 +1,4 @@
-class Plugins<T extends (...args: any[]) => any, U> {
+export class Plugins<T extends (...args: any[]) => any, U> {
   handlers: T[];
   constructor() {
     this.handlers = [];
@@ -14,5 +14,3 @@ class Plugins<T extends (...args: any[]) => any, U> {
     return this.handlers.reduce((v, f) => f.call(null, v), x);
   }
 }
-
-export default Plugins;

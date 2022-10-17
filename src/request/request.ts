@@ -1,14 +1,18 @@
 import { IExtOptions, ICtx, IInstanceOptions, IAnyObject, IRequestOptions, IMethod, IPluginFn } from '../types';
-import RequestError from './requestError';
-import defaultConfig from './default';
-import { getUUID } from './util';
-import Plugins from './plugins';
+import { RequestError } from './requestError';
+import { defaultConfig } from './default';
+import { Plugins } from './plugins';
 
-class GRequest {
+export class Request {
   options!: Partial<IInstanceOptions>;
   res!: Plugins<IPluginFn, ICtx>;
   req!: Plugins<IPluginFn, ICtx>;
   task: IAnyObject = {}; // RequestTask
+  errorMap = {
+    logic: 'REQUEST_ERROR_LOGIC',
+    server: 'REQUEST_ERROR_SERVER',
+    network: 'REQUEST_ERROR_NETWORK',
+  };
 
   constructor(options?: IInstanceOptions) {
     this.init(options);
@@ -43,11 +47,13 @@ class GRequest {
     }
     const { ext = {}, ...req } = params;
 
+    const urlHasNoSearch = req.url.split('?')[0];
+
     // 构造 ctx 对象
     return {
       req: { header: {}, ...optionsReq, ...req },
       res: {},
-      ext: { taskName: req.url, ...(optionsExt as IExtOptions), ...ext },
+      ext: { urlHasNoSearch, taskName: urlHasNoSearch, ...(optionsExt as IExtOptions), ...ext },
     };
   }
 
@@ -63,7 +69,7 @@ class GRequest {
 
     // 自定义 id，方便打通全链路日志
     if (ctx.ext.xRequestId) {
-      ctx.req.header['X-Request-Id'] = getUUID();
+      ctx.req.header['X-Request-Id'] = this.getUUID();
     }
 
     // 自定义请求发起时间
@@ -103,7 +109,7 @@ class GRequest {
   }
 
   dispatch(ctx: ICtx): Promise<IAnyObject> {
-    const { timeout, retcodeKey, taskName } = ctx.ext;
+    const { timeout, taskName } = ctx.ext;
 
     // 重试逻辑处理
     const repeatTry = (): Promise<IAnyObject> => {
@@ -116,17 +122,14 @@ class GRequest {
       }
       return this.promiseAdtaper(ctx)
         .then((result) => {
-          this.alwaysHandler(ctx);
-
           const { statusCode } = result;
           if (statusCode >= 200 && statusCode < 300) {
+            this.clearHandler(ctx);
             // 挂到 ctx.res 上
             ctx.res = result;
 
             // retcode 处理
-            if (retcodeKey !== false && retcodeKey !== 'retcode') {
-              ctx.res.data.retcode = ctx.res.data[retcodeKey];
-            }
+            this.retcodeHandler(ctx);
 
             // res 插件处理返回
             this.res.pipe(ctx);
@@ -135,20 +138,24 @@ class GRequest {
           }
 
           // 处理服务器错误 message
-          throw new RequestError('Request Server Error', { type: 'REQUEST_ERROR_SERVER', statusCode });
+          throw new RequestError('Request Server Error', { type: this.errorMap.server, statusCode });
         })
         .catch((err) => {
-          this.alwaysHandler(ctx);
-          // 重试
-          if (ctx.ext.repeatNum && ctx.ext.repeatNum--) {
-            return repeatTry();
+          // 非逻辑错误，执行清空操作及重试
+          if (!(err.type && err.type === this.errorMap.logic)) {
+            this.clearHandler(ctx);
+
+            // 重试
+            if (ctx.ext.repeatNum && ctx.ext.repeatNum--) {
+              return repeatTry();
+            }
           }
 
-          if (err.type) {
-            throw err;
-          } else {
-            throw new RequestError(err.message || err.errMsg, { type: 'REQUEST_ERROR_FAIL' });
-          }
+          const newError = err.type
+            ? err
+            : new RequestError(err.message || err.errMsg, { type: this.errorMap.network });
+          this.completeHandler(ctx, newError);
+          throw newError;
         });
     };
 
@@ -157,7 +164,7 @@ class GRequest {
 
   promiseAdtaper(ctx: ICtx): Promise<any> {
     const { req, ext } = ctx;
-    const { adapter, taskName = req.url } = ext;
+    const { adapter, taskName } = ext;
 
     return new Promise((resolve, reject) => {
       this.task[taskName] = adapter(req, resolve, reject);
@@ -178,12 +185,12 @@ class GRequest {
     return Promise.reject(err);
   }
 
-  alwaysHandler(ctx: ICtx) {
+  clearHandler(ctx: ICtx) {
     const { xRequestTime, timeout, timer, taskName } = ctx.ext;
 
     // 计算请求耗时
     if (xRequestTime) {
-      ctx.ext.requestCostTime = Date.now() - ctx.req.header['X-Request-Time'];
+      ctx.ext.requestCostTime = Date.now() - ctx.req.header!['X-Request-Time'];
     }
 
     // 删除任务
@@ -197,15 +204,28 @@ class GRequest {
     }
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-empty-function
+  completeHandler(ctx: ICtx, err?: RequestError): void | ICtx {}
+
+  retcodeHandler(ctx: ICtx) {
+    const { retcodeKey } = ctx.ext;
+    if (retcodeKey !== false && retcodeKey !== 'retcode') {
+      ctx.res.data.retcode = ctx.res.data[retcodeKey];
+    }
+
+    return ctx;
+  }
+
   retcodeWhiteListHandler(ctx: ICtx) {
     const {
-      ext: { retcodeKey, retcodeWhiteList, LoginErrorMsgUnknown, logicErrorMsgKey },
+      ext: { retcodeKey, retcodeWhiteList },
       res,
     } = ctx;
 
     // 关闭白名单，retcode 不论为啥都为成功
     // 或者没有 retcodeKey
     if (retcodeWhiteList === false || !retcodeKey) {
+      this.completeHandler(ctx);
       return ctx;
     }
 
@@ -214,23 +234,42 @@ class GRequest {
     const { retcode } = res.data || {};
     const isWhite = retArr.includes(retcode);
     if (retcode === 0 || isWhite) {
+      this.completeHandler(ctx);
       return ctx;
     }
 
-    // 其他错误
-    let errMsg = res.data?.[logicErrorMsgKey] || LoginErrorMsgUnknown;
-    if (logicErrorMsgKey.includes('.')) {
-      const [key1, key2] = logicErrorMsgKey.split('.');
-      if (res.data?.[key1]?.[key2]) {
-        errMsg = res.data[key1][key2];
-      }
-    }
-
-    throw new RequestError(errMsg, {
-      type: 'REQUEST_ERROR_LOGIC',
+    // 逻辑错误
+    const logicErrMsg = this.getLogicErrMsg(ctx);
+    throw new RequestError(logicErrMsg, {
+      type: this.errorMap.logic,
       retcode,
     });
   }
-}
 
-export default GRequest;
+  getLogicErrMsg(ctx: ICtx): string {
+    const { res, ext } = ctx;
+    const { logicErrorMsgKey, LoginErrorMsgUnknown } = ext;
+
+    let logicErrMsg: string | undefined = res.data?.[logicErrorMsgKey];
+    if (logicErrorMsgKey.includes('.')) {
+      const [key1, key2] = logicErrorMsgKey.split('.');
+      if (res.data?.[key1]?.[key2]) {
+        logicErrMsg = res.data[key1][key2];
+      }
+    }
+
+    return logicErrMsg || LoginErrorMsgUnknown;
+  }
+
+  getUUID(bytes = 16) {
+    const SHARED_CHAR_CODES_ARRAY = Array(32);
+    for (let i = 0; i < bytes * 2; i++) {
+      SHARED_CHAR_CODES_ARRAY[i] = Math.floor(Math.random() * 16) + 48;
+      // valid hex characters in the range 48-57 and 97-102
+      if (SHARED_CHAR_CODES_ARRAY[i] >= 58) {
+        SHARED_CHAR_CODES_ARRAY[i] += 39;
+      }
+    }
+    return String.fromCharCode.apply(null, SHARED_CHAR_CODES_ARRAY.slice(0, bytes * 2));
+  }
+}

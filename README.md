@@ -21,10 +21,10 @@
 ```js
 // gRequest.js
 // ------------------------------------
-import GRequest from 'g-request';
+import { Request } from 'g-request';
 
 // 实例化（默认参数）
-const gReqeust = new GRequest({
+const gReqeust = new Request({
   // 所有的非请求（wx.request / XMLHttpRequest）所需参数，统一挂到 ext 属性上
   ext: {
     baseUrl: '',
@@ -58,6 +58,10 @@ gRequest.res.use((ctx) => {
   // 最后记得 return ctx
   return ctx;
 });
+
+// 请求完成处理，不论成功或失败，可用于关闭 loading，上报等
+// err 有三种 type，分别为：逻辑错误，服务器错误，网络错误
+gRequest.completeHandler = (ctx, err) => {};
 
 // 统一成功处理，如后台数据下划线转驼峰处理
 gRequest.thenHandler = (ctx) => {
@@ -151,7 +155,7 @@ gReqeust.abort();
 ```js
 import humps from 'humps';
 
-const gReqeust = new GRequest({
+const gReqeust = new Request({
   ext: {
     ...
     camelcase: true,
@@ -172,7 +176,7 @@ gReqeust.res.use((ctx) => {
 #### 小程序请求失败默认提示
 
 ```js
-const gReqeust = new GRequest({
+const gReqeust = new Request({
   ext: {
     ...
     hasFailToast: true,

@@ -1,7 +1,7 @@
 export type IAnyObject = Record<string, any>;
 export type IMethod = 'OPTIONS' | 'GET' | 'HEAD' | 'POST' | 'PUT' | 'DELETE' | 'TRACE' | 'CONNECT';
 export type IRequestErrorType = 'REQUEST_ERROR_SERVER' | 'REQUEST_ERROR_FAIL' | 'REQUEST_ERROR_LOGIC' | string;
-export interface IWXRequestOptions {
+export interface IWXReqOptions {
   url: string;
   data?: string | IAnyObject | ArrayBuffer;
   dataType?: 'json' | '其他';
@@ -18,12 +18,29 @@ export interface IWXRequestOptions {
   method?: IMethod;
 }
 
+export interface IXHRReqOptions {
+  url: string;
+  method?: IMethod;
+  header?: Record<string, string>;
+  data?: Document | XMLHttpRequestBodyInit | null | undefined | IAnyObject;
+  withCredentials?: boolean;
+  responseType?: 'text' | 'arraybuffer' | 'blob' | 'json' | '' | 'document';
+  timeout?: number;
+  async?: boolean;
+}
+
 export interface IWXRequestSuccessCallbackResult {
   cookies?: string[];
   data: IAnyObject;
   header: IAnyObject;
   statusCode: number;
   errMsg: string;
+}
+
+export interface IXHRRequestSuccessCallbackResult {
+  statusCode: number;
+  data: IAnyObject;
+  header: IAnyObject;
 }
 
 export interface IWXRequestFailCallbackResult {
@@ -44,27 +61,20 @@ export interface IExtOptions {
   [key: string]: any;
 }
 
-export interface IRequestOptions extends IWXRequestOptions {
-  ext?: Partial<IExtOptions>;
-}
+export type IReqOptions = IWXReqOptions | IXHRReqOptions;
+export type IRequestSuccessCallbackResult = IWXRequestSuccessCallbackResult | IXHRRequestSuccessCallbackResult;
+
+// export interface IReqOptions extends IWXReqOptions {
+//   ext?: Partial<IExtOptions>;
+// }
 
 export interface ICtx {
-  req: IWXRequestOptions & { header: IAnyObject };
-  res: IAnyObject;
+  req: IReqOptions;
+  res: IRequestSuccessCallbackResult | Record<string, never>;
   ext: IExtOptions;
 }
 
+export type IRequestOptions = IReqOptions & { ext?: Partial<IExtOptions> };
 export type IInstanceOptions = Omit<IRequestOptions, 'url'>;
 
 export type IPluginFn = (ctx: ICtx) => ICtx;
-
-export interface IXHRRequestOptions {
-  url: string;
-  method?: IMethod;
-  header?: Record<string, string>;
-  data?: Document | XMLHttpRequestBodyInit | null | undefined | IAnyObject;
-  withCredentials?: boolean;
-  responseType?: 'text' | 'arraybuffer' | 'blob' | 'json' | '' | 'document';
-  timeout?: number;
-  async?: boolean;
-}

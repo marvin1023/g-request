@@ -1,5 +1,5 @@
-import GRequest from './request/request';
-export { default as RequestError } from './request/requestError';
+export * from './request/request';
+export * from './request/requestError';
+export * from './request/adapter/wxAdapter';
+export * from './request/adapter/xhrAdapter';
 export * from './types';
-
-export default GRequest;

@@ -1,7 +1,7 @@
 import { IExtOptions } from '../types';
-import getDefaultAdapter from './adapter/index';
+import { getDefaultAdapter } from './adapter/index';
 
-const defaultConfig: { ext: Omit<IExtOptions, 'adapter'> } = {
+export const defaultConfig: { ext: Omit<IExtOptions, 'adapter'> } = {
   ext: {
     baseUrl: '',
     xRequestId: true,
@@ -15,5 +15,3 @@ const defaultConfig: { ext: Omit<IExtOptions, 'adapter'> } = {
     adapter: getDefaultAdapter(),
   },
 };
-
-export default defaultConfig;

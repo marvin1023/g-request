@@ -1,7 +1,7 @@
-import wxAdapter from './wxAdapter';
-import xhrAdapter from './xhrAdapter';
+import { wxAdapter } from './wxAdapter';
+import { xhrAdapter } from './xhrAdapter';
 
-function getDefaultAdapter() {
+export const getDefaultAdapter = () => {
   let adapter;
   if (typeof XMLHttpRequest !== 'undefined') {
     // For browsers use XHR adapter
@@ -11,6 +11,4 @@ function getDefaultAdapter() {
     adapter = wxAdapter;
   }
   return adapter;
-}
-
-export default getDefaultAdapter;
+};

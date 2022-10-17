@@ -1,5 +1,5 @@
 import { IRequestErrorType } from '../types';
-class RequestError extends Error {
+export class RequestError extends Error {
   type: IRequestErrorType; // 错误类型
   retcode?: number; // 业务逻辑错误码
   statusCode?: number; // 服务器错误码
@@ -17,5 +17,3 @@ class RequestError extends Error {
     }
   }
 }
-
-export default RequestError;

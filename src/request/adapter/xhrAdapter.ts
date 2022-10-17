@@ -1,7 +1,11 @@
-import { IAnyObject, IXHRRequestOptions } from '../../types';
+import { IAnyObject, IXHRReqOptions } from '../../types';
 import { isPlainObject } from '../util';
 
-const xhrAdapter = (config: IXHRRequestOptions, resolve: (value: unknown) => void, reject: (reason?: any) => void) => {
+export const xhrAdapter = (
+  config: IXHRReqOptions,
+  resolve: (value: unknown) => void,
+  reject: (reason?: any) => void,
+) => {
   const {
     url,
     method = 'GET',
@@ -100,5 +104,3 @@ const xhrAdapter = (config: IXHRRequestOptions, resolve: (value: unknown) => voi
 
   return xhr;
 };
-
-export default xhrAdapter;
