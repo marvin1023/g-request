@@ -34,34 +34,3 @@ export default defineConfig({
     }),
   ],
 });
-// const buildOptions = [
-//   {
-//     input: '.build/request/request.js',
-//     output: {
-//       file: pkg.main,
-//       format: 'umd',
-//       name: 'GRequest',
-//     },
-//     plugins: [
-//       terser(),
-//       license({
-//         banner: {
-//           content: {
-//             file: path.join(__dirname, 'LICENSE'),
-//             encoding: 'utf-8', // Default is utf-8
-//           },
-//         },
-//       }),
-//     ],
-//   },
-//   {
-//     input,
-//     output: {
-//       dir: './dist/esm',
-//       format: 'esm',
-//       preserveModules: true,
-//     },
-//   },
-// ];
-
-// export default buildOptions;
