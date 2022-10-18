@@ -106,7 +106,7 @@ gReqeust.request({
   // 可覆盖 gReqeust 实例化的 ext 设置
   ext: {
     repeatNum: 0, // 失败不重试
-    taskName: 'hello', // 该请求任务名称，用于取消请求，如不设置，则默认为 url
+    taskName: 'hello', // 该请求任务名称，用于取消请求，如不设置，则默认为 gReqeust.taskIndex 的自增值
   },
 });
 

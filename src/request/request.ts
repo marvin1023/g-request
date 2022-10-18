@@ -8,6 +8,7 @@ export class Request {
   res!: Plugins<IPluginFn, ICtx>;
   req!: Plugins<IPluginFn, ICtx>;
   task: IAnyObject = {}; // RequestTask
+  taskIndex = 0; // 默认
   errorMap = {
     logic: 'REQUEST_ERROR_LOGIC',
     server: 'REQUEST_ERROR_SERVER',
@@ -47,17 +48,17 @@ export class Request {
     }
     const { ext = {}, ...req } = params;
 
-    const urlHasNoSearch = req.url.split('?')[0];
-
     // 构造 ctx 对象
     return {
       req: { header: {}, ...optionsReq, ...req },
       res: {},
-      ext: { urlHasNoSearch, taskName: urlHasNoSearch, ...(optionsExt as IExtOptions), ...ext },
+      ext: { taskName: String(this.taskIndex), ...(optionsExt as IExtOptions), ...ext },
     };
   }
 
   request<T>(url: string | IRequestOptions, rest?: IInstanceOptions): Promise<T> {
+    this.taskIndex++;
+
     const requestTime = Date.now();
     const ctx = this.initCtx(url, rest);
 
