@@ -48,11 +48,13 @@ export class Request {
     }
     const { ext = {}, ...req } = params;
 
+    const urlHasNoSearch = req.url.split('?')[0]; // 不带 query 的 url，用于上报
+
     // 构造 ctx 对象
     return {
       req: { header: {}, ...optionsReq, ...req },
       res: {},
-      ext: { taskName: String(this.taskIndex), ...(optionsExt as IExtOptions), ...ext },
+      ext: { urlHasNoSearch, taskName: String(this.taskIndex), ...(optionsExt as IExtOptions), ...ext },
     };
   }
 
