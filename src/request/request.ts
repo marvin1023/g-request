@@ -21,7 +21,7 @@ export class Request {
 
   init(options?: IInstanceOptions) {
     // 非 wx.request 请求的参数全部挂在 ext 属性中
-    const { ext: defaultExt } = defaultConfig;
+    const { ext: defaultExt } = this.getDefaultConfig();
     const { ext = {}, ...req } = options || {};
 
     this.options = { ...req, ext: { ...defaultExt, ...ext } };
@@ -29,6 +29,13 @@ export class Request {
     this.res = new Plugins<IPluginFn, ICtx>();
   }
 
+  // 可用于扩展类自定义新的 defaultConfig
+  getDefaultConfig() {
+    return defaultConfig;
+  }
+
+  // 可用于实例统一更新 ext
+  // 如环境发生改变，统一更新 baseUrl
   updateOptions(data: Partial<IExtOptions>) {
     Object.assign(this.options.ext as IExtOptions, data);
   }
