@@ -1,19 +1,14 @@
 import { IExtOptions, ICtx, IInstanceOptions, IAnyObject, IRequestOptions, IMethod, IPluginFn } from '../types';
+import { REQUEST_ERROR_MAP, DEFAULT_LOGIC_ERROR_MSG_UNKNOWN, DEFAULT_RETCODE_KEY } from './const';
 import { RequestError } from './requestError';
 import { defaultConfig } from './default';
 import { Plugins } from './plugins';
-
 export class Request {
-  options!: Partial<IInstanceOptions>;
+  options!: IInstanceOptions;
   res!: Plugins<IPluginFn, ICtx>;
   req!: Plugins<IPluginFn, ICtx>;
   task: IAnyObject = {}; // RequestTask
   taskIndex = 0; // 默认
-  errorMap = {
-    logic: 'REQUEST_ERROR_LOGIC',
-    server: 'REQUEST_ERROR_SERVER',
-    network: 'REQUEST_ERROR_NETWORK',
-  };
 
   constructor(options?: IInstanceOptions) {
     this.init(options);
@@ -22,9 +17,8 @@ export class Request {
   init(options?: IInstanceOptions) {
     // 非 wx.request 请求的参数全部挂在 ext 属性中
     const { ext: defaultExt } = this.getDefaultConfig();
-    const { ext = {}, ...req } = options || {};
 
-    this.options = { ...req, ext: { ...defaultExt, ...ext } };
+    this.options = { ext: { ...defaultExt, ...options?.ext } };
     this.req = new Plugins<IPluginFn, ICtx>();
     this.res = new Plugins<IPluginFn, ICtx>();
   }
@@ -36,47 +30,31 @@ export class Request {
 
   // 可用于实例统一更新 ext
   // 如环境发生改变，统一更新 baseUrl
-  updateOptions(data: Partial<IExtOptions>) {
-    Object.assign(this.options.ext as IExtOptions, data);
+  updateOptions(options: IExtOptions) {
+    Object.assign(this.options.ext, options);
   }
 
-  initCtx(url: string | IRequestOptions, rest?: IInstanceOptions) {
-    const { ext: optionsExt, ...optionsReq } = this.options;
-    const params: IRequestOptions = { url: '', ext: {} };
-
-    // 对不同的参数进行处理
-    if (typeof url === 'string') {
-      params.url = url;
-      if (rest) {
-        Object.assign(params, rest);
-      }
-    } else {
-      Object.assign(params, url);
-    }
-    const { ext = {}, ...req } = params;
-
-    const urlHasNoSearch = req.url.split('?')[0]; // 不带 query 的 url，用于上报
+  initCtx(opts: IRequestOptions): ICtx {
+    const { ext, ...req } = opts;
 
     // 构造 ctx 对象
     return {
-      req: { header: {}, ...optionsReq, ...req },
+      req: { header: {}, ...req },
       res: {},
-      ext: { urlHasNoSearch, taskName: String(this.taskIndex), ...(optionsExt as IExtOptions), ...ext },
+      ext: { taskName: String(this.taskIndex), ...this.options.ext, ...ext },
     };
   }
 
-  request<T>(url: string | IRequestOptions, rest?: IInstanceOptions): Promise<T> {
-    this.taskIndex++;
-
-    const requestTime = Date.now();
-    const ctx = this.initCtx(url, rest);
-
+  urlHandler(ctx: ICtx) {
     // url 处理
     const { baseUrl } = ctx.ext;
     if (baseUrl && !ctx.req.url.startsWith('http')) {
       ctx.req.url = `${baseUrl}${ctx.req.url}`;
     }
+    ctx.ext.urlHasNoSearch = ctx.req.url.split('?')[0]; // 不带 query 的 url，可用于统计或上报等
+  }
 
+  reqHandler(ctx: ICtx) {
     // 自定义 id，方便打通全链路日志
     if (ctx.ext.xRequestId) {
       ctx.req.header['X-Request-Id'] = this.getUUID();
@@ -84,11 +62,19 @@ export class Request {
 
     // 自定义请求发起时间
     if (ctx.ext.xRequestTime) {
-      ctx.req.header['X-Request-Time'] = requestTime;
+      ctx.req.header['X-Request-Time'] = Date.now();
     }
 
     // req 插件处理入参
     this.req.pipe(ctx);
+  }
+
+  request<T>(data: IRequestOptions): Promise<T> {
+    this.taskIndex++;
+
+    const ctx = this.initCtx(data);
+    this.urlHandler(ctx);
+    this.reqHandler(ctx);
 
     return this.dispatch(ctx)
       .then(() => {
@@ -99,23 +85,16 @@ export class Request {
       });
   }
 
-  method<T>(method: IMethod, url: string | IRequestOptions, data?: IInstanceOptions) {
-    const params: IRequestOptions = { url: '' };
-
-    if (typeof url === 'string') {
-      Object.assign(params, { url, data, method });
-    } else {
-      Object.assign(params, { ...url, method });
-    }
-    return this.request<T>(params);
+  method<T>(method: IMethod, data: IRequestOptions) {
+    return this.request<T>({ ...data, method });
   }
 
-  get<T>(url: string | IRequestOptions, data?: IInstanceOptions) {
-    return this.method<T>('GET', url, data);
+  get<T>(data: IRequestOptions) {
+    return this.method<T>('GET', data);
   }
 
-  post<T>(url: string | IRequestOptions, data?: IInstanceOptions) {
-    return this.method<T>('POST', url, data);
+  post<T>(data: IRequestOptions) {
+    return this.method<T>('POST', data);
   }
 
   dispatch(ctx: ICtx): Promise<IAnyObject> {
@@ -130,7 +109,7 @@ export class Request {
           clearTimeout(ctx.ext.timer);
         }, timeout);
       }
-      return this.promiseAdtaper(ctx)
+      return this.promiseAdapter(ctx)
         .then((result) => {
           const { statusCode } = result;
           if (statusCode >= 200 && statusCode < 300) {
@@ -148,11 +127,11 @@ export class Request {
           }
 
           // 处理服务器错误 message
-          throw new RequestError('Request Server Error', { type: this.errorMap.server, statusCode });
+          throw new RequestError('Request Server Error', { type: REQUEST_ERROR_MAP.server, statusCode });
         })
         .catch((err) => {
           // 非逻辑错误，执行清空操作及重试
-          if (!(err.type && err.type === this.errorMap.logic)) {
+          if (!(err.type && err.type === REQUEST_ERROR_MAP.logic)) {
             this.clearHandler(ctx);
 
             // 重试
@@ -163,18 +142,24 @@ export class Request {
 
           const newError = err.type
             ? err
-            : new RequestError(err.message || err.errMsg, { type: this.errorMap.network });
+            : new RequestError(err.message || err.errMsg, { type: REQUEST_ERROR_MAP.fail });
           this.completeHandler(ctx, newError);
           throw newError;
         });
     };
 
+    ctx.ext.repeatTry = repeatTry;
+
     return repeatTry();
   }
 
-  promiseAdtaper(ctx: ICtx): Promise<any> {
+  promiseAdapter(ctx: ICtx): Promise<any> {
     const { req, ext } = ctx;
     const { adapter, taskName } = ext;
+
+    if (!adapter) {
+      return Promise.reject('adapter is must be required');
+    }
 
     return new Promise((resolve, reject) => {
       this.task[taskName] = adapter(req, resolve, reject);
@@ -200,7 +185,7 @@ export class Request {
 
     // 计算请求耗时
     if (xRequestTime) {
-      ctx.ext.requestCostTime = Date.now() - ctx.req.header!['X-Request-Time'];
+      ctx.ext.requestCostTime = Date.now() - ctx.req.header['X-Request-Time'];
     }
 
     // 删除任务
@@ -219,8 +204,9 @@ export class Request {
 
   retcodeHandler(ctx: ICtx) {
     const { retcodeKey } = ctx.ext;
-    if (retcodeKey !== false && retcodeKey !== 'retcode') {
-      ctx.res.data.retcode = ctx.res.data[retcodeKey];
+    // 如果key值非retcode，则手动添加 retcode 等于该 key 的值
+    if (retcodeKey && retcodeKey !== DEFAULT_RETCODE_KEY) {
+      ctx.res.data[DEFAULT_RETCODE_KEY] = ctx.res.data[retcodeKey];
     }
 
     return ctx;
@@ -234,7 +220,7 @@ export class Request {
 
     // 关闭白名单，retcode 不论为啥都为成功
     // 或者没有 retcodeKey
-    if (retcodeWhiteList === false || !retcodeKey) {
+    if (!retcodeWhiteList || !retcodeKey) {
       this.completeHandler(ctx);
       return ctx;
     }
@@ -251,24 +237,34 @@ export class Request {
     // 逻辑错误
     const logicErrMsg = this.getLogicErrMsg(ctx);
     throw new RequestError(logicErrMsg, {
-      type: this.errorMap.logic,
+      type: REQUEST_ERROR_MAP.logic,
       retcode,
     });
   }
 
   getLogicErrMsg(ctx: ICtx): string {
     const { res, ext } = ctx;
-    const { logicErrorMsgKey, LoginErrorMsgUnknown } = ext;
+    const { logicErrorMsgKey, loginErrorMsgUnknown } = ext;
 
+    const defaultMsgUnknown = loginErrorMsgUnknown || DEFAULT_LOGIC_ERROR_MSG_UNKNOWN;
+
+    // 如果没有指定 msg 的 key
+    if (!logicErrorMsgKey) {
+      return defaultMsgUnknown;
+    }
+
+    // 如果有指定，则取该值
     let logicErrMsg: string | undefined = res.data?.[logicErrorMsgKey];
-    if (logicErrorMsgKey.includes('.')) {
+    // 错误信息可能不是一个直接的 string 字段，而是被包裹在一个对象中，如 errData: { text: 'xxx', code: xxx };
+    // 这样可以设置 key 值为 'errData.text'，分割得到最终的字段
+    if (!logicErrMsg && logicErrorMsgKey.includes('.')) {
       const [key1, key2] = logicErrorMsgKey.split('.');
       if (res.data?.[key1]?.[key2]) {
         logicErrMsg = res.data[key1][key2];
       }
     }
 
-    return logicErrMsg || LoginErrorMsgUnknown;
+    return logicErrMsg || defaultMsgUnknown;
   }
 
   getUUID(bytes = 16) {
