@@ -222,7 +222,9 @@ console.log(REQUEST_ERROR_MAP);
 ```
 
 1、第一种错误：根本没有收到服务端返回的信息，这就有了 fail 的错误（以小程序来说，就是 fail 的回调，以 web 来说，就是 XMLHttpRequest 的 onabort, ontimeout, onerror 事件触发），该错误抛出：`new RequestError(err.message || err.errMsg, { type: REQUEST_ERROR_MAP.fail })`。
+
 2、第二种错误：接受到了服务端的信息，但是 statusCode 小于 200，大于等于 300，这就有了 server 错误，该错误抛出： `new RequestError('Request Server Error', { type: REQUEST_ERROR_MAP.server, statusCode });`。
+
 3、第三种错误：虽然 statusCode 大于等于 200，小于 300，但是如果用户没有登录，或身份不对等都无法获取到正确的数据，所以就有了 logic 错误，该错误抛出： `new RequestError(logicErrMsg, { type: REQUEST_ERROR_MAP.logic, retcode });`。`logicErrMsg` 的取值见下面的说明。
 
 这三种抛出的错误默认都会进入到 `catchHandler` 进行处理，如果对 `retcodeWhiteList` 进行设置，则第三种的 logic 错误白名单内的会当做成功进入到 `thenHandler` 处理。
@@ -261,6 +263,32 @@ getLogicErrMsg(ctx: ICtx): string {
 ```
 
 ## completeHandler 说明
+
+```ts
+import { Request, ICtx, RequestError, REQUEST_ERROR_MAP } from 'g-request';
+
+// 不管成功，失败都会执行
+// 这里总共有四种情况，一种成功，三种失败
+gReqeust.completeHandler = (ctx: ICtx, err?: RequestError) => {
+  // 成功
+  if (!err) {
+  }
+
+  // 可以根据 err.type 来判断错误类型
+  // ------------------------------------
+  // fail
+  if (err.type === REQUEST_ERROR_MAP.fail) {
+  }
+
+  // server
+  if (err.type === REQUEST_ERROR_MAP.server) {
+  }
+
+  // logic
+  if (err.type === REQUEST_ERROR_MAP.server) {
+  }
+};
+```
 
 ## 其他定制
 
