@@ -2,39 +2,20 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
-## [2.2.0](https://git.woa.com/guild_qq_miniapp/qq-mp-request/compare/v1.1.0...v2.2.0) (2022-07-15)
+## 2.0.0 (2022-10-24)
 
 
 ### Features
 
-* 新增更新options字段 ([9645fc3](https://git.woa.com/guild_qq_miniapp/qq-mp-request/commit/9645fc3c1c7b360ac496540dbe3fb2b99a1cd9bc))
-* 重新设计请求库 ([9f7f8c4](https://git.woa.com/guild_qq_miniapp/qq-mp-request/commit/9f7f8c4743c4631b35aba951f1a03e0ed3cf820b))
+* 导出更多函数, 方便扩展 Request 类 ([6376835](https://github.com/marvin1023/g-request/commit/63768359357604ea2dc7fd9b1e5e5fbf12f9dad2))
+* 默认配置参数通过函数获取, 方便于扩展类 ([9a1d618](https://github.com/marvin1023/g-request/commit/9a1d618bc8e3e4e75f583936c23438c4cac54a1f))
+* 重新梳理逻辑及 TS ([af525b2](https://github.com/marvin1023/g-request/commit/af525b2d58f2fab0a0ca622c0a6a60cdf618cbfb))
+* ext 新增 urlHasNoSearch 属性,表示不带query的url ([d3a5a97](https://github.com/marvin1023/g-request/commit/d3a5a97dee2bb61d1d033caa8dd44b3d53d2fcc3))
+* init ([563a1a2](https://github.com/marvin1023/g-request/commit/563a1a24e2d770af5510bb20d63d89a41f3d5a54))
 
 
 ### Bug Fixes
 
-* 版本重置 ([d70e8b9](https://git.woa.com/guild_qq_miniapp/qq-mp-request/commit/d70e8b948f145388c88cf7c057871c134a1b2467))
-* 干掉调试, 补充readme ([e7e38e4](https://git.woa.com/guild_qq_miniapp/qq-mp-request/commit/e7e38e4d140e9287a6beb515dce4b9ffb82aee8d))
-* 解决冲突 ([e85dbdb](https://git.woa.com/guild_qq_miniapp/qq-mp-request/commit/e85dbdb30699356a68bce0531cb899eb1436a6cf))
-* 添加未知错误 ([1bd1193](https://git.woa.com/guild_qq_miniapp/qq-mp-request/commit/1bd11934c92b72cd376897b1eaef4fef482abb74))
-* bugs & readme ([52a27af](https://git.woa.com/guild_qq_miniapp/qq-mp-request/commit/52a27af84fc5c63973a238b514133353d5633074))
-* debug ([c30257d](https://git.woa.com/guild_qq_miniapp/qq-mp-request/commit/c30257d0a4bc49f6d7ced89c5628b7d78439a3db))
-* request ([b9d5040](https://git.woa.com/guild_qq_miniapp/qq-mp-request/commit/b9d504089985191f085d331e6b617ae377ecce11))
-
-## 1.1.0 (2022-06-28)
-
-
-### Features
-
-* init ([9b691a8](https://git.woa.com/guild_qq_miniapp/mp-request/commit/9b691a89cc3389391a237e29516a15663b2060cf))
-* init ([40560de](https://git.woa.com/guild_qq_miniapp/mp-request/commit/40560de64d5788ad60b128a61732aca577f058cc))
-
-
-### Bug Fixes
-
-* 调整方法 ([42ef4d0](https://git.woa.com/guild_qq_miniapp/mp-request/commit/42ef4d0082d5093eaf621f2ba6564cdf46c21a43))
-* 添加 ([7039dfa](https://git.woa.com/guild_qq_miniapp/mp-request/commit/7039dfa5ea2597cf75ddd7f208aca4111e43f23c))
-* 添加请求取消 ([e9f62f2](https://git.woa.com/guild_qq_miniapp/mp-request/commit/e9f62f2d6038649f1ec7dee07dce146238bd7081))
-* 修改eslint prettier 配置 ([dffd806](https://git.woa.com/guild_qq_miniapp/mp-request/commit/dffd8060c5e32f9d48df976e381a97d5d48ce876))
-* husky 修改 ([a54c976](https://git.woa.com/guild_qq_miniapp/mp-request/commit/a54c976f135665ba510c0bfce3b1b0863dd73243))
-* rollup ([f4be5fe](https://git.woa.com/guild_qq_miniapp/mp-request/commit/f4be5fed48b7689adb769f76441ac6bb1ae22691))
+* 调整 script 及删除垃圾信息 ([8d2806a](https://github.com/marvin1023/g-request/commit/8d2806a10e61349ed143d766c7127c63778574c4))
+* 默认 taskName 使用自动 id ([2a42482](https://github.com/marvin1023/g-request/commit/2a42482068838bd88a4848f44c39e398a0702f9b))
+* 修复 main 入口等 ([da9c314](https://github.com/marvin1023/g-request/commit/da9c314d38342ecfd4b612863c88c4a60c121c20))
