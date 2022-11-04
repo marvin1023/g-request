@@ -73,7 +73,7 @@ export type IRequestSuccessCallbackResult = IWXRequestSuccessCallbackResult | IX
 export interface ICtx {
   req: IReqOptions & { header: Record<string, string> };
   res: IRequestSuccessCallbackResult | Record<string, never>;
-  ext: IExtOptions;
+  ext: IExtOptions & { urlHasNoSearch?: string; requestCostTime?: number };
 }
 
 export type IRequestOptions = IReqOptions & { ext?: IExtOptions };
