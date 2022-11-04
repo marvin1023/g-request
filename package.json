@@ -1,6 +1,6 @@
 {
   "name": "g-request",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "description": "封装了一些常见的业务逻辑的请求库，如请求参数与返回数据处理，业务逻辑码（retcode）处理，失败重试，统一成功失败处理等。默认支持小程序与 WEB 请求。",
   "type": "module",
   "miniprogram": "dist",
@@ -51,10 +51,8 @@
     "prettier": "^2.7.1",
     "rimraf": "^3.0.2",
     "rollup": "^2.75.7",
-    "rollup-plugin-dts": "^4.2.2",
     "rollup-plugin-esbuild": "^4.10.1",
     "rollup-plugin-license": "^2.8.1",
-    "rollup-plugin-terser": "^7.0.2",
     "standard-version": "^9.5.0",
     "typescript": "^4.7.4",
     "vite": "^3.1.8"

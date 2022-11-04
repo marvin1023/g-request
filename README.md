@@ -382,3 +382,7 @@ gReqeust.catchHandler = (err: RequestError, ctx: ICtx) => {
   return Promise.reject(err);
 }
 ```
+
+## 注意事项
+
+- 该库 TS 编译的 `target` 为 `ES2015`。如果要兼容到老版本，请再进行一次 babel 编译。

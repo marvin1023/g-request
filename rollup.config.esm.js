@@ -14,7 +14,7 @@ export default defineConfig({
   ],
   plugins: [
     esbuild({
-      target: 'esnext',
+      target: 'es2015',
     }),
     license({
       banner: {

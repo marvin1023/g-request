@@ -23,7 +23,6 @@ export default defineConfig({
       babelHelpers: 'bundled',
     }),
 
-    // terser(),
     license({
       banner: {
         content: {
