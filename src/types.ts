@@ -53,7 +53,7 @@ export type IAdapter = (
   reject: (reason?: any) => void,
 ) => any;
 
-export interface IExtOptions {
+export interface IRequestConfig {
   baseUrl?: string; // 基础 url，以 https 开头
   repeatNum?: number; // 请求失败重试次数
   xRequestId?: boolean; // 是否生成请求 id
@@ -62,7 +62,7 @@ export interface IExtOptions {
   retcodeKey?: false | string; // retcode 字段，false 表示不启用该功能
   retcodeWhiteList?: false | number[]; // retcode 白名单，默认 0 和 白名单表示业务成功，其余为失败，false 表示不启用该功能。
   logicErrorMsgKey?: string; // 业务逻辑错误文本字段
-  loginErrorMsgUnknown?: string; // 默认的业务逻辑错误文本，如果后台没有返回对应的错误信息，则将使用该信息
+  LogicErrorMsgUnknown?: string; // 默认的业务逻辑错误文本，如果后台没有返回对应的错误信息，则将使用该信息
   adapter?: IAdapter; // 请求 adapter
   [key: string]: any;
 }
@@ -70,13 +70,13 @@ export interface IExtOptions {
 export type IReqOptions = IWXReqOptions | IXHRReqOptions;
 export type IRequestSuccessCallbackResult = IWXRequestSuccessCallbackResult | IXHRRequestSuccessCallbackResult;
 
-export interface ICtx {
+export interface IRequestCtx {
   req: IReqOptions & { header: Record<string, string> };
   res: IRequestSuccessCallbackResult | Record<string, never>;
-  ext: IExtOptions & { urlHasNoSearch?: string; requestCostTime?: number };
+  ext: IRequestConfig & { urlHasNoSearch?: string; requestCostTime?: number };
 }
 
-export type IRequestOptions = IReqOptions & { ext?: IExtOptions };
-export type IInstanceOptions = { ext: IExtOptions };
+export type IRequestOptions = IReqOptions & { ext?: IRequestConfig };
+export type IRequestInitOptions = Omit<IRequestOptions, 'url' | 'data'>;
 
-export type IPluginFn = (ctx: ICtx) => ICtx;
+export type IRequestPluginFn = (ctx: IRequestCtx) => IRequestCtx;

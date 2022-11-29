@@ -1,51 +1,53 @@
-import { IExtOptions, ICtx, IInstanceOptions, IAnyObject, IRequestOptions, IMethod, IPluginFn } from '../types';
+import {
+  IRequestCtx,
+  IRequestInitOptions,
+  IAnyObject,
+  IRequestOptions,
+  IMethod,
+  IRequestPluginFn,
+  IRequestConfig,
+} from '../types';
 import { REQUEST_ERROR_MAP, DEFAULT_LOGIC_ERROR_MSG_UNKNOWN, DEFAULT_RETCODE_KEY } from './const';
 import { RequestError } from './requestError';
 import { defaultConfig } from './default';
 import { Plugins } from './plugins';
 export class Request {
-  options!: IInstanceOptions;
-  res!: Plugins<IPluginFn, ICtx>;
-  req!: Plugins<IPluginFn, ICtx>;
+  options!: IRequestInitOptions;
+  res!: Plugins<IRequestPluginFn, IRequestCtx>;
+  req!: Plugins<IRequestPluginFn, IRequestCtx>;
   task: IAnyObject = {}; // RequestTask
   taskIndex = 0; // 默认
 
-  constructor(options?: IInstanceOptions) {
+  static defaultConfig: IRequestConfig = defaultConfig;
+
+  static setConfig = (config: IRequestConfig) => {
+    Object.assign(Request.defaultConfig, config);
+  };
+
+  constructor(options?: IRequestInitOptions) {
     this.init(options);
   }
 
-  init(options?: IInstanceOptions) {
-    // 非 wx.request 请求的参数全部挂在 ext 属性中
-    const { ext: defaultExt } = this.getDefaultConfig();
-
-    this.options = { ext: { ...defaultExt, ...options?.ext } };
-    this.req = new Plugins<IPluginFn, ICtx>();
-    this.res = new Plugins<IPluginFn, ICtx>();
+  init(options?: IRequestInitOptions) {
+    this.options = options || {};
+    this.req = new Plugins<IRequestPluginFn, IRequestCtx>();
+    this.res = new Plugins<IRequestPluginFn, IRequestCtx>();
   }
 
-  // 可用于扩展类自定义新的 defaultConfig
-  getDefaultConfig() {
-    return defaultConfig;
-  }
-
-  // 可用于实例统一更新 ext
-  // 如环境发生改变，统一更新 baseUrl
-  updateOptions(options: IExtOptions) {
-    Object.assign(this.options.ext, options);
-  }
-
-  initCtx(opts: IRequestOptions): ICtx {
+  initCtx(opts: IRequestOptions): IRequestCtx {
+    const { defaultConfig } = Request;
+    const { ext: optionsExt, ...optionsReq } = this.options;
     const { ext, ...req } = opts;
 
     // 构造 ctx 对象
     return {
-      req: { header: {}, ...req },
+      req: { header: {}, ...optionsReq, ...req },
       res: {},
-      ext: { taskName: String(this.taskIndex), ...this.options.ext, ...ext },
+      ext: { taskName: String(this.taskIndex), ...defaultConfig, ...optionsExt, ...ext },
     };
   }
 
-  urlHandler(ctx: ICtx) {
+  urlHandler(ctx: IRequestCtx) {
     // url 处理
     const { baseUrl } = ctx.ext;
     if (baseUrl && !ctx.req.url.startsWith('http')) {
@@ -54,7 +56,7 @@ export class Request {
     ctx.ext.urlHasNoSearch = ctx.req.url.split('?')[0]; // 不带 query 的 url，可用于统计或上报等
   }
 
-  reqHandler(ctx: ICtx) {
+  reqHandler(ctx: IRequestCtx) {
     // 自定义 id，方便打通全链路日志
     if (ctx.ext.xRequestId) {
       ctx.req.header['X-Request-Id'] = this.getUUID();
@@ -97,7 +99,7 @@ export class Request {
     return this.method<T>('POST', data);
   }
 
-  dispatch(ctx: ICtx): Promise<IAnyObject> {
+  dispatch(ctx: IRequestCtx): Promise<IAnyObject> {
     const { timeout, taskName } = ctx.ext;
 
     // 重试逻辑处理
@@ -153,7 +155,7 @@ export class Request {
     return repeatTry();
   }
 
-  promiseAdapter(ctx: ICtx): Promise<any> {
+  promiseAdapter(ctx: IRequestCtx): Promise<any> {
     const { req, ext } = ctx;
     const { adapter, taskName } = ext;
 
@@ -172,15 +174,15 @@ export class Request {
     });
   }
 
-  thenHandler<T>(ctx: ICtx): T {
+  thenHandler<T>(ctx: IRequestCtx): T {
     return ctx.res as T;
   }
 
-  catchHandler(err: RequestError, ctx: ICtx) {
+  catchHandler(err: RequestError, ctx: IRequestCtx) {
     return Promise.reject(err);
   }
 
-  clearHandler(ctx: ICtx) {
+  clearHandler(ctx: IRequestCtx) {
     const { xRequestTime, timeout, timer, taskName } = ctx.ext;
 
     // 计算请求耗时
@@ -200,9 +202,9 @@ export class Request {
   }
 
   // eslint-disable-next-line @typescript-eslint/no-empty-function
-  completeHandler(ctx: ICtx, err?: RequestError): void | ICtx {}
+  completeHandler(ctx: IRequestCtx, err?: RequestError): void | IRequestCtx {}
 
-  retcodeHandler(ctx: ICtx) {
+  retcodeHandler(ctx: IRequestCtx) {
     const { retcodeKey } = ctx.ext;
     // 如果key值非retcode，则手动添加 retcode 等于该 key 的值
     if (retcodeKey && retcodeKey !== DEFAULT_RETCODE_KEY) {
@@ -212,7 +214,7 @@ export class Request {
     return ctx;
   }
 
-  retcodeWhiteListHandler(ctx: ICtx) {
+  retcodeWhiteListHandler(ctx: IRequestCtx) {
     const {
       ext: { retcodeKey, retcodeWhiteList },
       res,
@@ -242,11 +244,11 @@ export class Request {
     });
   }
 
-  getLogicErrMsg(ctx: ICtx): string {
+  getLogicErrMsg(ctx: IRequestCtx): string {
     const { res, ext } = ctx;
-    const { logicErrorMsgKey, loginErrorMsgUnknown } = ext;
+    const { logicErrorMsgKey, logicErrorMsgUnknown } = ext;
 
-    const defaultMsgUnknown = loginErrorMsgUnknown || DEFAULT_LOGIC_ERROR_MSG_UNKNOWN;
+    const defaultMsgUnknown = logicErrorMsgUnknown || DEFAULT_LOGIC_ERROR_MSG_UNKNOWN;
 
     // 如果没有指定 msg 的 key
     if (!logicErrorMsgKey) {
