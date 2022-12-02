@@ -410,7 +410,7 @@ gReqeust.req.use((ctx) => {
   return ctx;
 });
 
-gReqeust.res.use((ctx: IRequestCtx) => {
+gReqeust.res.use((ctx) => {
   // 默认如果 camelCase 为 true，则自动进行转驼峰处理
   if (ctx.ext.camelCase) {
     ctx.res.data = humps.camelizeKeys(ctx.res.data);
