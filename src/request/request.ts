@@ -24,6 +24,10 @@ export class Request<U extends IAnyObject = Record<string, never>> {
   task: IAnyObject = {}; // RequestTask
   taskIndex = 0; // 默认
 
+  completeHandler?(ctx: IRequestCtx<U>, err?: RequestError): void;
+  thenHandler?(ctx: IRequestCtx<U>): IAnyObject;
+  catchHandler?(err: RequestError, ctx: IRequestCtx<U>): void | RequestError;
+
   constructor(options?: IRequestInitOptions) {
     this.init(options);
   }
@@ -71,7 +75,7 @@ export class Request<U extends IAnyObject = Record<string, never>> {
     this.req.pipe(ctx);
   }
 
-  request<T>(data: IRequestOptions<U>): Promise<T> {
+  async request<T>(data: IRequestOptions<U>): Promise<T> {
     this.taskIndex++;
 
     const ctx = this.initCtx(data);
@@ -79,11 +83,12 @@ export class Request<U extends IAnyObject = Record<string, never>> {
     this.reqHandler(ctx);
 
     return this.dispatch(ctx)
-      .then(() => {
-        return this.thenHandler<T>(ctx);
+      .then((res) => {
+        return (this.thenHandler?.(ctx) || res) as T;
       })
       .catch((err: RequestError) => {
-        return this.catchHandler(err, ctx);
+        const error = this.catchHandler?.(err, ctx);
+        return Promise.reject(error || err);
       });
   }
 
@@ -145,7 +150,7 @@ export class Request<U extends IAnyObject = Record<string, never>> {
           const newError = err.type
             ? err
             : new RequestError(err.message || err.errMsg, { type: REQUEST_ERROR_MAP.fail });
-          this.completeHandler(ctx, newError);
+          this.completeHandler?.(ctx, newError);
           throw newError;
         });
     };
@@ -174,14 +179,6 @@ export class Request<U extends IAnyObject = Record<string, never>> {
     });
   }
 
-  thenHandler<T>(ctx: IRequestCtx<U>): T {
-    return ctx.res as T;
-  }
-
-  catchHandler(err: RequestError, ctx: IRequestCtx<U>) {
-    return Promise.reject(err);
-  }
-
   clearHandler(ctx: IRequestCtx<U>) {
     const { xRequestTime, timeout, timer, taskName } = ctx.ext;
 
@@ -200,9 +197,6 @@ export class Request<U extends IAnyObject = Record<string, never>> {
       clearTimeout(timer);
     }
   }
-
-  // eslint-disable-next-line @typescript-eslint/no-empty-function
-  completeHandler(ctx: IRequestCtx<U>, err?: RequestError): void | IRequestCtx<U> {}
 
   retcodeHandler(ctx: IRequestCtx<U>) {
     const { retcodeKey } = ctx.ext;
@@ -223,7 +217,7 @@ export class Request<U extends IAnyObject = Record<string, never>> {
     // 关闭白名单，retcode 不论为啥都为成功
     // 或者没有 retcodeKey
     if (!retcodeWhiteList || !retcodeKey) {
-      this.completeHandler(ctx);
+      this.completeHandler?.(ctx);
       return ctx;
     }
 
@@ -232,7 +226,7 @@ export class Request<U extends IAnyObject = Record<string, never>> {
     const { retcode } = res.data || {};
     const isWhite = retArr.includes(retcode);
     if (retcode === 0 || isWhite) {
-      this.completeHandler(ctx);
+      this.completeHandler?.(ctx);
       return ctx;
     }
 
