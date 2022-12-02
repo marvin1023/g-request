@@ -53,30 +53,42 @@ export type IAdapter = (
   reject: (reason?: any) => void,
 ) => any;
 
-export interface IRequestConfig {
-  baseUrl?: string; // 基础 url，以 https 开头
-  repeatNum?: number; // 请求失败重试次数
-  xRequestId?: boolean; // 是否生成请求 id
-  xRequestTime?: boolean; // 是否需要记录请求时间
-  timeout?: number; // 超时时间，如果确定发请求的 api 本身就支持 timeout 属性，可以设置该值为 0
-  retcodeKey?: false | string; // retcode 字段，false 表示不启用该功能
-  retcodeWhiteList?: false | number[]; // retcode 白名单，默认 0 和 白名单表示业务成功，其余为失败，false 表示不启用该功能。
-  logicErrorMsgKey?: string; // 业务逻辑错误文本字段
-  LogicErrorMsgUnknown?: string; // 默认的业务逻辑错误文本，如果后台没有返回对应的错误信息，则将使用该信息
-  adapter?: IAdapter; // 请求 adapter
-  [key: string]: any;
+export interface IRequestDefaultConfig {
+  baseUrl: string; // 基础 url，以 https 开头
+  repeatNum: number; // 请求失败重试次数
+  xRequestId: boolean; // 是否生成请求 id
+  xRequestTime: boolean; // 是否需要记录请求时间
+  timeout: number; // 超时时间，如果确定发请求的 api 本身就支持 timeout 属性，可以设置该值为 0
+  retcodeKey: false | string; // retcode 字段，false 表示不启用该功能
+  retcodeWhiteList: false | number[]; // retcode 白名单，默认 0 和 白名单表示业务成功，其余为失败，false 表示不启用该功能。
+  logicErrorMsgKey: string; // 业务逻辑错误文本字段
+  LogicErrorMsgUnknown: string; // 默认的业务逻辑错误文本，如果后台没有返回对应的错误信息，则将使用该信息
+  adapter: IAdapter | undefined; // 请求 adapter
 }
+
+export type IRequestConfig = Partial<IRequestDefaultConfig> & IAnyObject;
 
 export type IReqOptions = IWXReqOptions | IXHRReqOptions;
 export type IRequestSuccessCallbackResult = IWXRequestSuccessCallbackResult | IXHRRequestSuccessCallbackResult;
-
-export interface IRequestCtx {
-  req: IReqOptions & { header: Record<string, string> };
-  res: IRequestSuccessCallbackResult | Record<string, never>;
-  ext: IRequestConfig & { urlHasNoSearch?: string; requestCostTime?: number };
+export interface IRequestInnerExtOptions {
+  urlHasNoSearch: string;
+  timer: ReturnType<typeof setTimeout>;
+  repeatTry: () => Promise<IAnyObject>;
+  requestCostTime?: number;
 }
 
-export type IRequestOptions = IReqOptions & { ext?: IRequestConfig };
+export type IIRequestExt = IRequestDefaultConfig & IRequestInnerExtOptions & IAnyObject;
+
+export interface IRequestCtx<U extends IAnyObject = Record<string, never>> {
+  req: IReqOptions & { header: Record<string, string> };
+  res: IRequestSuccessCallbackResult | Record<string, never>;
+  ext: U extends Record<string, never> ? IIRequestExt : IIRequestExt & U;
+}
+
+export type IRequestOptions<U extends IAnyObject = Record<string, never>> = IReqOptions & {
+  ext?: U extends Record<string, never> ? IRequestConfig : IRequestConfig & Partial<U>;
+};
+
 export type IRequestInitOptions = Omit<IRequestOptions, 'url' | 'data'>;
 
-export type IRequestPluginFn = (ctx: IRequestCtx) => IRequestCtx;
+export type IRequestPluginFn<U extends IAnyObject> = (ctx: IRequestCtx<U>) => IRequestCtx<U>;

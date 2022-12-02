@@ -1,8 +1,8 @@
-import { IRequestConfig } from '../types';
+import { IRequestDefaultConfig } from '../types';
 import { getDefaultAdapter } from './adapter/index';
 import { DEFAULT_LOGIC_ERROR_MSG_KEY, DEFAULT_LOGIC_ERROR_MSG_UNKNOWN, DEFAULT_RETCODE_KEY } from './const';
 
-export const defaultConfig: IRequestConfig = {
+export const defaultConfig: IRequestDefaultConfig = {
   baseUrl: '',
   xRequestId: true,
   xRequestTime: true,
