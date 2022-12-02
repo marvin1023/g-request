@@ -46,7 +46,7 @@ import { Request, IRequestCtx, RequestError, IRequestInitOptions, IRequestOption
 //   },
 // }
 
-// 修改 defaultConfig
+// 修改 config
 // 如添加一个加载提示控制变量 loadingTips；错误文本字段改成 msg 字段
 const config: IRequestConfig = {
   loadingTips: true,
