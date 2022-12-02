@@ -163,8 +163,11 @@ gRequest.thenHandler = (ctx) => {
 gRequest.catchHandler = (err, ctx) => {
   // 处理逻辑
 };
+```
 
 **4、函数封装**
+
+```ts
 // 常用 get 与 post 方法的进一步封装
 // ------------------------------------------------
 // 先定义返回的数据格式
@@ -272,7 +275,7 @@ gPost<Res<Data3>>({
 });
 ```
 
-**取消正在发送中的请求**
+**6、取消正在发送中的请求**
 
 ```ts
 // 取消单个 taskName 为 hello 的请求
@@ -375,25 +378,25 @@ getLogicErrMsg(ctx: IRequestCtx): string {
 }
 ```
 
-## 其他定制
-
-### web 请求 loading 提示
-
-借助 [x-global-api](https://github.com/marvin1023/x-global-api) 库提供的全局 showLoading 方法实现。
-
-如为小程序，可直接使用 `wx.showLoading` 与 `wx.hideLoading` 来实现。
+## 实战
 
 ```ts
 import { Request, IRequestCtx, RequestError } from 'g-request';
-import { showLoading, hideLoading } from 'x-global-api';
+// 如为小程序，可直接使用 `wx.showLoading` 与 `wx.showToast` 来实现。
+import { showLoading, hideLoading, showToast } from 'x-global-api';
+import humps from 'humps';
 
 interface IExt {
-  loadingTips: boolean;
+  loadingTips: boolean; // 请求发送时 showLoading
+  failToast: boolean; // 失败 showToast
+  camelCase: boolean; // 转驼峰处理
 }
 
-// 既可以静态方法设置，也可以实例化设置，这里用静态方法设置，下一个驼峰用实例化设置
+// 既可以静态方法设置，也可以实例化设置，这里用静态方法处理
 Request.setConfig({
-  loadingTips: true,
+  loadingTips: false,
+  failToast: true,
+  camelCase: true,
 });
 
 const gReqeust = new Request<IExt>();
@@ -407,31 +410,6 @@ gReqeust.req.use((ctx) => {
   return ctx;
 });
 
-// 不管成功，失败都要 hideLoading
-gReqeust.completeHandler = (ctx, err?) => {
-  if (ctx.ext.loadingTips) {
-    hideLoading();
-  }
-};
-```
-
-### 默认驼峰处理
-
-```ts
-import { Request, IRequestCtx } from 'g-request';
-import humps from 'humps';
-
-interface IExt {
-  loadingTips: boolean;
-}
-
-// 初始化设置
-const gReqeust = new Request<IExt>({
-  ext: {
-    camelCase: true,
-  },
-});
-
 gReqeust.res.use((ctx: IRequestCtx) => {
   // 默认如果 camelCase 为 true，则自动进行转驼峰处理
   if (ctx.ext.camelCase) {
@@ -440,36 +418,44 @@ gReqeust.res.use((ctx: IRequestCtx) => {
 
   return ctx;
 });
-```
 
-### 小程序请求失败默认提示
+// 不管成功，失败都要 hideLoading
+gReqeust.completeHandler = (ctx, err?) => {
+  if (ctx.ext.loadingTips) {
+    hideLoading();
+  }
+};
 
-```ts
-import { Request, IRequestCtx, RequestError } from 'g-request';
+// 统一成功处理
+gRequest.thenHandler = (ctx) => {
+  // 返回下一步进入成功的数据
+  return ctx.res.data;
+};
 
-interface IExt {
-  loadingTips: boolean;
-}
-
-const gReqeust = new Request<IExt>({
-  ext: {
-    failToast: true,
-  },
-});
-
+// 失败错误提示
 gReqeust.catchHandler = (err, ctx) => {
   if (ctx.ext.failToast) {
     const { message, retcode, type, statusCode } = err || {};
     const codeText = retcode ? `(${retcode})` : '';
 
     if (message) {
-      wx.showToast({
-        title: type === 'REQUEST_ERROR_FAIL' ? '请求失败' : `${message}${codeText}`,
+      showToast({
+        title: type === RequestError.fail ? '请求失败' : `${message}${codeText}`,
         icon: 'none',
       });
     }
   }
 };
+
+export function gGet<T>(data: IRequestOptions<IExt>) {
+  return gRequest.get<IRequestRes<T>>(data);
+}
+
+export function gPost<T>(data: IRequestOptions<IExt>) {
+  return gRequest.post<IRequestRes<T>>(data);
+}
+
+export default gRequest;
 ```
 
 ## 注意事项
