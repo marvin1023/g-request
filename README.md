@@ -9,10 +9,11 @@
 - 业务返回码 retcode 字段指定及白名单处理
 - request 请求参数插件处理
 - response 返回数据插件处理
-- 不论是成功还是失败都要处理，见下面的 completeHandler（如 hideLoading 处理，上报处理）
-- 成功或失败的 promise 链，见下面的 thenHandler 和 catchHandler
+- 完成处理（不论成功或失败），见下面的 completeHandler（可在里面进行 hideLoading 处理、上报处理等）
+- 成功或失败的统一 promise 链，见下面的 thenHandler 和 catchHandler
 - 支持取消发送请求
 - 请求适配器自定义
+- Typescript 编写
 - 其他定制
 
 ## 安装
@@ -23,83 +24,147 @@ npm i g-request --save
 
 ## 使用
 
-### 1、业务实例化并处理公有逻辑
+### 光速入门
 
 ```ts
-// gRequest.ts
-// ------------------------------------
-import { Request, IRequestCtx, RequestError, IRequestInitOptions, IRequestOptions, IRequestConfig } from 'g-request';
+import { Request } from 'g-request';
 
-// 默认参数 defaultConfig 为以下的值：
-// {
-//   ext: {
-//     baseUrl: '',
-//     xRequestId: true, // header 头部加上 x-request-id，方便查看日志，默认开启
-//     xRequestTime: true, // 记录请求耗时，默认开始
-//     repeatNum: 2, // 默认失败自动重试 2 次
-//     timeout: 0, // 默认请求本身支持 timeout 参数的不需要这个，设置为 0 即可，如果需要兼容不支持的，设置这个即可，不要设置请求本身的
-//     retcodeKey: 'retcode', // retcode 字段，false 表示不启用该功能
-//     retcodeWhiteList: [], // retcode 白名单，默认空数组为retcode为0进入then，其余为进入catch，false 表示不启用该功能，retcodeKey 为 false 也没有该功能
-//     logicErrorMsgKey: 'message', // ，默认逻辑错误文本字段，支持一层对象，如 errData.msg
-//     LoginErrorMsgUnknown: 'Unknown Error', // 逻辑错误文本默认，如果后台没有返回具体的错误，则显示该文本
-//     adapter: getDefaultAdapter(), // 自动适配 WEB 还是小程序发送请求
-//   },
-// }
+const gRequest = new Request();
 
-// 修改 config
+const requestData = {
+  url: 'xxx',
+  data: {
+    a: 1,
+  },
+};
+
+// request 调用，如果没有指定 method，则为 GET 请求
+gRequest.request(requestData);
+
+// get 调用
+gRequest.get(requestData);
+
+// post 调用
+gRequest.post(requestData);
+```
+
+### 手把手自定义
+
+**1、覆盖默认配置**
+
+默认的配置有两种方式可覆盖：一种是调用静态方法 setConfig 设置；一种是实例化传入自定义参数。
+
+这里实例化的自定义参数分为两类，一类是用于真正请求的，如 header 等；另一类是用于辅助控制逻辑的，会统一放到 ext 对象中。
+
+```ts
+import { Request, REQUEST_ERROR_MAP } from 'g-request';
+
+// 第一种修改 config
 // 如添加一个加载提示控制变量 loadingTips；错误文本字段改成 msg 字段
 const config: IRequestConfig = {
-  loadingTips: true,
-  logicErrorMsgKey: 'msg',
+  logicErrorMsgKey: 'msg', // 覆盖默认的字段
+  loadingTips: true, // 新增业务处理字段，用来控制是否请求数据的时候显示 loading
 }
 Request.setConfig(config)
 
 
-// 实例化
-const gReqeust = new Request(options: IRequestInitOptions);
+// 第二种实例化传入自定义参数
+// 为了得到上面新增 loadingTips 的 TS 提示支持，实例化得传入泛型，这样使用 ctx 参数时才会有新的配置字段提示。
+interface IExt {
+  loadingTips: boolean;
+}
 
+// IRequestInitOptions 的结构大概是 {..., ext?: {...}}
+// 前面三点表示请求的一些字段，后面三点表示 config 字段
+// 这里 options.ext 里面的配置会覆盖 setConfig 的配置
+const gReqeust = new Request<IExt>(options: IRequestInitOptions);
+
+// 如果没有新增字段，则不需要泛型
+// const gReqeust = new Request(options: IRequestInitOptions);
+
+export default gReqeust;
+
+
+// 默认配置为以下的值（可通过 setConfig 或实例化自定义参数覆盖）：
+// {
+//   baseUrl: '',
+//   xRequestId: true, // header 头部加上 x-request-id，方便查看日志，默认开启
+//   xRequestTime: true, // 记录请求耗时，默认开始
+//   repeatNum: 2, // 默认失败自动重试 2 次
+//   timeout: 0, // 默认请求本身支持 timeout 参数的不需要这个，设置为 0 即可，如果需要兼容不支持的，设置这个即可，不要设置请求本身的
+//   retcodeKey: 'retcode', // retcode 字段，false 表示不启用该功能
+//   retcodeWhiteList: [], // retcode 白名单，默认空数组为retcode为0进入then，其余为进入catch，false 表示不启用该功能，retcodeKey 为 false 也没有该功能
+//   logicErrorMsgKey: 'message', // ，默认逻辑错误文本字段，支持一层对象，如 errData.msg
+//   LoginErrorMsgUnknown: 'Unknown Error', // 逻辑错误文本默认，如果后台没有返回具体的错误，则显示该文本
+//   adapter: getDefaultAdapter(), // 自动适配 WEB 还是小程序发送请求
+// }
+```
+
+**2、插件处理入参与返回**
+
+```ts
 // 插件式处理请求参数或返回数据
 // ------------------------------------------------
 // 处理请求参数
-// 可使用多个 use，每个 use 函数按注册顺序依次进入管道处理，最后返回 ctx
+// 可使用多个 use，每个 use 函数按注册顺序依次进入管道处理，所有的入参都挂到 ctx.req 对象上，最后返回 ctx
 // 如小程序可再次设置 header 的 cookie 字段，用于鉴权
-gRequest.req.use((ctx: IRequestCtx) => {
+gRequest.req.use((ctx) => {
   // 处理 req ...
-  // const { req } = ctx;
+  // ctx.req.xxx = xxx;
 
   // 最后记得 return ctx
   return ctx;
 });
 
-// 处理返回数据，同上请求参数的处理
-gRequest.res.use((ctx: IRequestCtx) => {
+// 处理返回数据，所有的返回都挂到 ctx.res 对象上，同上请求参数的处理
+gRequest.res.use((ctx) => {
   // 处理 res ...
   // ctx.res = {};
 
   // 最后记得 return ctx
   return ctx;
 });
+```
 
+**3、成功失败的统一处理**
+
+```ts
 // 处理请求的成功及失败
 // ------------------------------------------------
 // 请求完成处理，不论成功或失败，可用于关闭 loading，上报等
 // err 有三种 type，分别为：逻辑错误，服务器错误，网络错误，具体见错误说明部分
-gRequest.completeHandler = (ctx: IRequestCtx, err?: RequestError) => {};
+gRequest.completeHandler = (ctx, err?) => {
+  // 成功
+  if (!err) {
+  }
+
+  // 可以根据 err.type 来判断错误类型
+  // ------------------------------------
+  // fail
+  if (err.type === REQUEST_ERROR_MAP.fail) {
+  }
+
+  // server
+  if (err.type === REQUEST_ERROR_MAP.server) {
+  }
+
+  // logic
+  if (err.type === REQUEST_ERROR_MAP.server) {
+  }
+};
 
 // 统一成功处理
-gRequest.thenHandler = <T>(ctx: IRequestCtx) => {
+gRequest.thenHandler = (ctx) => {
   // 返回下一步进入成功的数据
-  return ctx.res as T;
+  return ctx.res;
 };
 
 // 统一错误处理：如 toast 提示，上报错误等
-gRequest.catchHandler = (err: RequestError, ctx: IRequestCtx) => {
+gRequest.catchHandler = (err, ctx) => {
   // 处理逻辑
-
-  // 最后一定要返回错误，用于串起错误链
-  return Promise.reject(err);
 };
 
+**4、函数封装**
 // 常用 get 与 post 方法的进一步封装
 // ------------------------------------------------
 // 先定义返回的数据格式
@@ -110,29 +175,36 @@ export interface IRequestRes<T> {
   message: string;
 }
 // 简化 get 方法
-export function gGet<T>(data: IRequestOptions) {
+// 如果实例化有泛型，则这里的 IRequestOptions 也需要 <IExt>，否则不需要
+export function gGet<T>(data: IRequestOptions<IExt>) {
   return gRequest.get<IRequestRes<T>>(data);
 }
 
 // 简化 post 方法
-export function gPost<T>(data: IRequestOptions) {
+// 如果实例化有泛型，则这里的 IRequestOptions 也需要 <IExt>，否则不需要
+export function gPost<T>(data: IRequestOptions<IExt>) {
   return gRequest.post<IRequestRes<T>>(data);
 }
-
-// 导出 gReqeust
-export default gReqeust;
 ```
 
-### 2、具体发送请求
+**5、具体发送请求**
 
 导入 `gRequest.ts`，调用其方法发送具体请求
 
-```js
+```ts
 // api.ts
 // ------------------------------------
 import { IRequestOptions, IRequestConfig } from 'g-request';
 import gReqeust, { gGet, gPost } from './gReqeust';
 
+// 定义返回结构
+interface Res<T> {
+  retcode: number;
+  data: T;
+  message?: string;
+}
+
+// 通用
 // IRequestOptions 类型有小程序的和 WEB 的，常用的几个属性如下，具体的话可见类型提示：
 // {
 //   url: string;
@@ -140,76 +212,69 @@ import gReqeust, { gGet, gPost } from './gReqeust';
 //   header?: Record<string, string>;
 //   data?: IAnyObject | ...; // 这个有多种值，xhr 这里只做做了 IAnyObject 的特殊处理，其余全部透传
 //   timeout?: number; // 注意该 timeout 为默认支持的，如果确认你要兼容的都支持，那么就可以考虑去掉 ext 中的 timeout
-//   ext?: Partial<IRequestConfig>;
+//   ext?: {...}; // 上面说的配置
 // }
 
-// 通用
-gReqeust.request < T > (options: IRequestOptions);
+// gReqeust.request<Res<T>>(options: IRequestOptions);
 
 // post 请求 1
-interface Res1 {
+interface Data1 {
   isValid: boolean;
 }
-gPost <
-  Res1 >
-  {
-    url: 'xxx',
-    method: 'POST', // 如不设置，默认为 GET 请求
-    // 设置 header
-    header: {
-      'x-language': 'en', // 设置请求语言
-    },
-    data: {
-      a: 1,
-      b: 2,
-    },
-    // 可覆盖默认配置，及 gReqeust 初始化参数
-    ext: {
-      repeatNum: 0, // 失败不重试
-      taskName: 'hello', // 该请求任务名称，用于取消请求，如不设置，则默认为 gReqeust.taskIndex 的自增值
-    },
-  };
+
+gPost<Res<Data1>>({
+  url: 'xxx',
+  method: 'POST', // 如不设置，默认为 GET 请求
+  header: {
+    'x-language': 'en', // 设置请求语言
+  },
+  data: {
+    a: 1,
+    b: 2,
+  },
+  // 可覆盖前面的设置
+  ext: {
+    repeatNum: 0, // 失败不重试
+    taskName: 'hello', // 该请求任务名称，用于取消请求，如不设置，则默认为 gReqeust.taskIndex 的自增值
+  },
+});
 
 // get 请求
-interface Res2 {
-  time: string;
+interface Data2 {
+  name: string;
 }
-gGet <
-  Res2 >
-  {
-    url: 'xxx',
-    // 自动拼成 query
-    data: {
-      a: 1,
-      b: 2,
-    },
-    ext: {
-      retcodeKey: 'code', // 这条请求的 retcodeKey 是 code 字段
-    },
-  };
+gGet<Res<Data2>>({
+  url: 'xxx',
+  // 自动拼成 query
+  data: {
+    a: 1,
+    b: 2,
+  },
+  ext: {
+    retcodeKey: 'code', // 这条请求的 retcodeKey 是 code 字段
+  },
+});
 
 // post 请求
-interface Res3 {
+interface Data3 {
   name: string;
   id: string;
 }
-gPost <
-  Res3 >
-  {
-    url: 'xxx',
-    data: {
-      a: 1,
-      b: 2,
-    },
-    ext: {
-      retcodeWhiteList: [3455, 6784], // retcode 为 0， 3455，6784 将会按成功处理，其余按失败处理
-    },
-  };
+gPost<Res<Data3>>({
+  url: 'xxx',
+  data: {
+    a: 1,
+    b: 2,
+  },
+  ext: {
+    retcodeWhiteList: [3455, 6784], // retcode 为 0， 3455，6784 将会按成功处理，其余按失败处理
+  },
+});
 ```
 
 **取消正在发送中的请求**
 
-```js
+```ts
 // 取消单个 taskName 为 hello 的请求
 gReqeust.task?.hello.abort();
 
@@ -224,36 +289,39 @@ ctx 由 `req、res、ext` 三大属性组成， 其 TS 类型如下：
 PS：注意所有的用于辅助功能的参数都挂到 ext 上，不要随便在 req 上面挂属性。req 会透传到请求适配器，用于发送请求的所有参数。
 
 ```ts
-export interface IRequestCtx {
-  req: IReqOptions & { header: Record<string, string> }; // 请求参数
-  res: IRequestSuccessCallbackResult | Record<string, never>; // 返回数据
-  ext: IRequestConfig; // 用于辅助的一些参数
+// 所有的 ctx 参数的类型都为 IRequestCtx<U>（其中 U 来自类 Report<U> 的泛型）：
+export interface IRequestCtx<U extends IAnyObject = Record<string, never>> {
+  req: IReqOptions & { header: Record<string, string> };
+  res: IRequestSuccessCallbackResult | Record<string, never>;
+  ext: U extends Record<string, never> ? IIRequestExt : IIRequestExt & U;
 }
 
-export type IAdapter = (
-  config: IAnyObject & { url: string },
-  resolve: (value: unknown) => void,
-  reject: (reason?: any) => void,
-) => any;
+export type IIRequestExt = IRequestDefaultConfig & IRequestInnerExtOptions & IAnyObject;
 
-export interface IRequestConfig {
-  baseUrl?: string; // 基础 url，以 https 开头
-  repeatNum?: number; // 请求失败重试次数
-  xRequestId?: boolean; // 是否生成请求 id
-  xRequestTime?: boolean; // 是否需要记录请求时间
-  timeout?: number; // 超时时间，如果确定发请求的 api 本身就支持 timeout 属性，可以设置该值为 0
-  retcodeKey?: false | string; // retcode 字段，false 表示不启用该功能
-  retcodeWhiteList?: false | number[]; // retcode 白名单，默认 0 和 白名单表示业务成功，其余为失败，false 表示不启用该功能。
-  logicErrorMsgKey?: string; // 业务逻辑错误文本字段
-  LogicErrorMsgUnknown?: string; // 默认的业务逻辑错误文本，如果后台没有返回对应的错误信息，则将使用该信息
-  adapter?: IAdapter; // 请求 adapter
-  [key: string]: any;
+export interface IRequestDefaultConfig {
+  baseUrl: string; // 基础 url，以 https 开头
+  repeatNum: number; // 请求失败重试次数
+  xRequestId: boolean; // 是否生成请求 id
+  xRequestTime: boolean; // 是否需要记录请求时间
+  timeout: number; // 超时时间，如果确定发请求的 api 本身就支持 timeout 属性，可以设置该值为 0
+  retcodeKey: false | string; // retcode 字段，false 表示不启用该功能
+  retcodeWhiteList: false | number[]; // retcode 白名单，默认 0 和 白名单表示业务成功，其余为失败，false 表示不启用该功能。
+  logicErrorMsgKey: string; // 业务逻辑错误文本字段
+  LogicErrorMsgUnknown: string; // 默认的业务逻辑错误文本，如果后台没有返回对应的错误信息，则将使用该信息
+  adapter: IAdapter | undefined; // 请求 adapter
+}
+
+export interface IRequestInnerExtOptions {
+  urlHasNoSearch: string; // 去掉请求 url 的 query，可用于上报请求地址
+  timer: ReturnType<typeof setTimeout>;
+  repeatTry: () => Promise<IAnyObject>; // 用于重试
+  requestCostTime?: number; // 请求总共花费时间，当 xRequestTime 为 true，则有该值
 }
 ```
 
 ## 请求错误说明
 
-```js
+```ts
 import { REQUEST_ERROR_MAP, RequestError, DEFAULT_LOGIC_ERROR_MSG_UNKNOWN } from 'g-request';
 
 console.log(REQUEST_ERROR_MAP);
@@ -307,34 +375,6 @@ getLogicErrMsg(ctx: IRequestCtx): string {
 }
 ```
 
-## completeHandler 说明
-
-```ts
-import { Request, IRequestCtx, RequestError, REQUEST_ERROR_MAP } from 'g-request';
-
-// 不管成功，失败都会执行
-// 这里总共有四种情况，一种成功，三种失败
-gReqeust.completeHandler = (ctx: IRequestCtx, err?: RequestError) => {
-  // 成功
-  if (!err) {
-  }
-
-  // 可以根据 err.type 来判断错误类型
-  // ------------------------------------
-  // fail
-  if (err.type === REQUEST_ERROR_MAP.fail) {
-  }
-
-  // server
-  if (err.type === REQUEST_ERROR_MAP.server) {
-  }
-
-  // logic
-  if (err.type === REQUEST_ERROR_MAP.server) {
-  }
-};
-```
-
 ## 其他定制
 
 ### web 请求 loading 提示
@@ -347,77 +387,77 @@ gReqeust.completeHandler = (ctx: IRequestCtx, err?: RequestError) => {
 import { Request, IRequestCtx, RequestError } from 'g-request';
 import { showLoading, hideLoading } from 'x-global-api';
 
-const gReqeust = new Request({
-  ext: {
-    ...
-    loadingTips: true,
-  },
+interface IExt {
+  loadingTips: boolean;
+}
+
+// 既可以静态方法设置，也可以实例化设置，这里用静态方法设置，下一个驼峰用实例化设置
+Request.setConfig({
+  loadingTips: true,
 });
 
+const gReqeust = new Request<IExt>();
+
 gReqeust.req.use((ctx) => {
-  const { ext } = ctx;
   // 默认如果 loadingTips 为 true，则显示 loading
-  if (ext.loadingTips) {
-    showLoading({title: '数据加载中...', mask: true});
+  if (ctx.ext.loadingTips) {
+    showLoading({ title: '数据加载中...', mask: true });
   }
 
   return ctx;
-})
+});
 
 // 不管成功，失败都要 hideLoading
-gReqeust.completeHandler = (ctx: IRequestCtx, err?: RequestError) => {
-  const { ext } = ctx;
-  if (ext.loadingTips) {
+gReqeust.completeHandler = (ctx, err?) => {
+  if (ctx.ext.loadingTips) {
     hideLoading();
   }
-}
-
+};
 ```
 
 ### 默认驼峰处理
-
-以对返回的后台数据进行默认的转驼峰处理为例，可通过静态方法 setConfig 设置，或实例化的时候 `ext` 属性中添加 `camelCase`
 
 ```ts
 import { Request, IRequestCtx } from 'g-request';
 import humps from 'humps';
 
-// 静态方法设置
-// Request.setConfig({
-//   camelCase: true,
-// });
+interface IExt {
+  loadingTips: boolean;
+}
 
 // 初始化设置
-const gReqeust = new Request({
+const gReqeust = new Request<IExt>({
   ext: {
-    ...
     camelCase: true,
   },
 });
 
 gReqeust.res.use((ctx: IRequestCtx) => {
-  const { ext } = ctx;
   // 默认如果 camelCase 为 true，则自动进行转驼峰处理
-  if (ext.camelCase) {
+  if (ctx.ext.camelCase) {
     ctx.res.data = humps.camelizeKeys(ctx.res.data);
   }
 
   return ctx;
-})
+});
 ```
 
 ### 小程序请求失败默认提示
 
 ```ts
 import { Request, IRequestCtx, RequestError } from 'g-request';
-const gReqeust = new Request({
+
+interface IExt {
+  loadingTips: boolean;
+}
+
+const gReqeust = new Request<IExt>({
   ext: {
-    ...
     failToast: true,
   },
 });
 
-gReqeust.catchHandler = (err: RequestError, ctx: IRequestCtx) => {
+gReqeust.catchHandler = (err, ctx) => {
   if (ctx.ext.failToast) {
     const { message, retcode, type, statusCode } = err || {};
     const codeText = retcode ? `(${retcode})` : '';
@@ -429,9 +469,7 @@ gReqeust.catchHandler = (err: RequestError, ctx: IRequestCtx) => {
       });
     }
   }
-
-  return Promise.reject(err);
-}
+};
 ```
 
 ## 注意事项
