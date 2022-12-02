@@ -1,6 +1,6 @@
 {
   "name": "g-request",
-  "version": "3.0.0",
+  "version": "3.1.0",
   "description": "封装了一些常见的业务逻辑的请求库，如请求参数与返回数据处理，业务逻辑码（retcode）处理，失败重试，统一成功失败处理等。默认支持小程序与 WEB 请求。",
   "type": "module",
   "miniprogram": "dist",
