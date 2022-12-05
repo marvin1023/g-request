@@ -62,7 +62,7 @@ export interface IRequestDefaultConfig {
   retcodeKey: false | string; // retcode 字段，false 表示不启用该功能
   retcodeWhiteList: false | number[]; // retcode 白名单，默认 0 和 白名单表示业务成功，其余为失败，false 表示不启用该功能。
   logicErrorMsgKey: string; // 业务逻辑错误文本字段
-  LogicErrorMsgUnknown: string; // 默认的业务逻辑错误文本，如果后台没有返回对应的错误信息，则将使用该信息
+  logicErrorMsgUnknown: string; // 默认的业务逻辑错误文本，如果后台没有返回对应的错误信息，则将使用该信息
   adapter: IAdapter | undefined; // 请求 adapter
 }
 

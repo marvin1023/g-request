@@ -11,6 +11,6 @@ export const defaultConfig: IRequestDefaultConfig = {
   retcodeKey: DEFAULT_RETCODE_KEY,
   retcodeWhiteList: [], // 默认空数组，表示只有 0 为成功
   logicErrorMsgKey: DEFAULT_LOGIC_ERROR_MSG_KEY, // 逻辑错误字段
-  LogicErrorMsgUnknown: DEFAULT_LOGIC_ERROR_MSG_UNKNOWN,
+  logicErrorMsgUnknown: DEFAULT_LOGIC_ERROR_MSG_UNKNOWN,
   adapter: getDefaultAdapter(),
 };
